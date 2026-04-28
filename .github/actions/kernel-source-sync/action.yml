@@ -31,7 +31,6 @@ runs:
       working-directory: ${{ inputs.source_location }}
       run: |
         repo sync -c -j$(nproc)
-        repo sync -g ddk -c
 
     - name: Clean up ABI protected exports
       shell: bash
