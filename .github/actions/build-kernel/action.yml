@@ -1013,13 +1013,22 @@ runs:
             exit 1
             ;;
         esac
-        
+            # 修复 SUSFS v2.1.0 与 KSUN 的兼容问题
         cd "$COMMON_KERNEL_FOLDER"
-        if [ "${{ env.ANDROID_VER }}" = "android15" ] && [ "${{ env.KERNEL_VER }}" = "6.6" ]; then
-          if ! grep -qxF '#include <trace/hooks/fs.h>' ./fs/namespace.c; then
-            sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace\/hooks\/fs.h>' ./fs/namespace.c
-          fi
+    
+        # init.c 缺少 sucompat.h 和 setuid_hook.h
+        if ! grep -q "feature/sucompat.h" drivers/kernelsu/core/init.c; then
+          sed -i '/#include "ksu.h"/a #include "feature/sucompat.h"' drivers/kernelsu/core/init.c
         fi
+        if ! grep -q "hook/setuid_hook.h" drivers/kernelsu/core/init.c; then
+          sed -i '/#include "ksu.h"/a #include "hook/setuid_hook.h"' drivers/kernelsu/core/init.c
+        fi
+            cd "$COMMON_KERNEL_FOLDER"
+            if [ "${{ env.ANDROID_VER }}" = "android15" ] && [ "${{ env.KERNEL_VER }}" = "6.6" ]; then
+              if ! grep -qxF '#include <trace/hooks/fs.h>' ./fs/namespace.c; then
+                sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace\/hooks\/fs.h>' ./fs/namespace.c
+              fi
+            fi
         
         # Fake kernel patch to fix failures
         fake_patched=0
