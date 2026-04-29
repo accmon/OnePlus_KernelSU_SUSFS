@@ -1072,40 +1072,20 @@ runs:
             sed -i '/#include "ksu.h"/a #include "feature/sucompat.h"' drivers/kernelsu/core/init.c
           grep -q "hook/setuid_hook.h" drivers/kernelsu/core/init.c || \
             sed -i '/#include "ksu.h"/a #include "hook/setuid_hook.h"' drivers/kernelsu/core/init.c
-          
-          # 修复 setuid_hook.c 缺少的函数声明
-          grep -q "feature/sucompat.h" drivers/kernelsu/hook/setuid_hook.c || \
-            sed -i '/#include "policy\/app_profile.h"/a #include "feature\/sucompat.h"' drivers/kernelsu/hook/setuid_hook.c
           # 修复 KPM 头文件路径
           if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
-            echo "=== KernelSU directory ==="
-            find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "app_profile.h" -o -name "supercall.h" 2>/dev/null
-            
+            # 复制头文件
             mkdir -p drivers/kernelsu/kpm/uapi
-            UAPI_SRC=""
-            if [ -d "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi" ]; then
-              UAPI_SRC="$KERNEL_PLATFORM_FOLDER/KernelSU/uapi"
-            elif [ -d "$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/uapi" ]; then
-              UAPI_SRC="$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/uapi"
+            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/supercall.h" drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
+            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/app_profile.h" drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
+
+            # 在 drivers/kernelsu/Kbuild 里的 KPM 编译行之前加上 ccflags
+            if [ -f drivers/kernelsu/Kbuild ]; then
+              if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
+                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
+              fi
             fi
-            
-            echo "UAPI_SRC=$UAPI_SRC"
-            
-            if [ -n "$UAPI_SRC" ]; then
-              cp -v "$UAPI_SRC/supercall.h" drivers/kernelsu/kpm/uapi/ || echo "copy supercall failed"
-              cp -v "$UAPI_SRC/app_profile.h" drivers/kernelsu/kpm/uapi/ || echo "copy app_profile failed"
-            else
-              curl -sL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/uapi/supercall.h" \
-                -o drivers/kernelsu/kpm/uapi/supercall.h
-              curl -sL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/uapi/app_profile.h" \
-                -o drivers/kernelsu/kpm/uapi/app_profile.h
-            fi
-            
-            echo "=== uapi dir after copy ==="
-            ls -la drivers/kernelsu/kpm/uapi/
           fi
-        fi
-        # ===== 修复结束 =====
 
         # Fake kernel patch to fix failures
         fake_patched=0
