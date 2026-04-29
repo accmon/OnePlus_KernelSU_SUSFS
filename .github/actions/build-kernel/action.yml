@@ -1078,8 +1078,8 @@ runs:
             sed -i '/#include "policy\/app_profile.h"/a #include "feature\/sucompat.h"' drivers/kernelsu/hook/setuid_hook.c
           # 修复 KPM 头文件路径
           if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
+            # 把头文件放到 drivers/kernelsu/kpm/ 下，让 uapi/ 子目录存在
             mkdir -p drivers/kernelsu/kpm/uapi
-            # 从 KernelSU 目录复制整个 uapi 目录
             UAPI_SRC=""
             if [ -d "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi" ]; then
               UAPI_SRC="$KERNEL_PLATFORM_FOLDER/KernelSU/uapi"
@@ -1088,7 +1088,8 @@ runs:
             fi
             
             if [ -n "$UAPI_SRC" ]; then
-              cp -r "$UAPI_SRC/"* drivers/kernelsu/kpm/uapi/
+              cp "$UAPI_SRC/supercall.h" drivers/kernelsu/kpm/uapi/
+              cp "$UAPI_SRC/app_profile.h" drivers/kernelsu/kpm/uapi/
             else
               curl -sL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/uapi/supercall.h" \
                 -o drivers/kernelsu/kpm/uapi/supercall.h
