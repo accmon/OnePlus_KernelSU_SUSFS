@@ -1076,12 +1076,15 @@ runs:
           # 修复 setuid_hook.c 缺少的函数声明
           grep -q "feature/sucompat.h" drivers/kernelsu/hook/setuid_hook.c || \
             sed -i '/#include "policy\/app_profile.h"/a #include "feature\/sucompat.h"' drivers/kernelsu/hook/setuid_hook.c
-          # 修复 KPM 头文件路径
+          # 修复 KPM 头文件路径 ← 从这里开始替换
           if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
-            KSU_DIR="$KERNEL_PLATFORM_FOLDER/KernelSU"
-            # 不管原来有什么，直接在最前面插入 -I 路径
-            if [ -f drivers/kernelsu/kpm/Kbuild ]; then
-              sed -i "1i\ccflags-y += -I${KSU_DIR}/kernel/" drivers/kernelsu/kpm/Kbuild
+            mkdir -p drivers/kernelsu/kpm/uapi
+            SUPER_HEADER=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "supercall.h" 2>/dev/null | head -1)
+            if [ -n "$SUPER_HEADER" ]; then
+              cp "$SUPER_HEADER" drivers/kernelsu/kpm/uapi/supercall.h
+            else
+              curl -sL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/uapi/supercall.h" \
+                -o drivers/kernelsu/kpm/uapi/supercall.h
             fi
           fi
         fi
