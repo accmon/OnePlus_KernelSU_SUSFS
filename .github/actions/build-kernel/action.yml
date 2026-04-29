@@ -1076,6 +1076,13 @@ runs:
           # 修复 setuid_hook.c 缺少的函数声明
           grep -q "feature/sucompat.h" drivers/kernelsu/hook/setuid_hook.c || \
             sed -i '/#include "policy\/app_profile.h"/a #include "feature\/sucompat.h"' drivers/kernelsu/hook/setuid_hook.c
+          # 修复 KPM 头文件路径 ← 加在这里
+          if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
+            KSU_DIR="$KERNEL_PLATFORM_FOLDER/KernelSU"
+            if grep -q "ccflags-y" drivers/kernelsu/kpm/Kbuild 2>/dev/null; then
+              sed -i "s|ccflags-y += -I|ccflags-y += -I${KSU_DIR}/kernel/ -I|" drivers/kernelsu/kpm/Kbuild
+            fi
+          fi
         fi
         # ===== 修复结束 =====
 
