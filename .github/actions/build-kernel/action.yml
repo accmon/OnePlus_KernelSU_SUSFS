@@ -1101,7 +1101,7 @@ runs:
             # 复制 arch.h 到所有需要它的子目录
             ARCH_H=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "arch.h" -type f 2>/dev/null | head -1)
             if [ -n "$ARCH_H" ]; then
-              for dest in feature hook infra selinux supercall core; do
+              for dest in feature hook infra selinux supercall core runtime; do
                 [ -d "drivers/kernelsu/$dest" ] && cp "$ARCH_H" "drivers/kernelsu/$dest/"
               done
             fi
@@ -1111,6 +1111,10 @@ runs:
             for f in $(grep -rl "ksu_cred" drivers/kernelsu/ --include="*.c" 2>/dev/null); do
               grep -q "$KSU_CRED_DEF" "$f" || sed -i "1i\\$KSU_CRED_DEF" "$f"
             done
+            
+            # 修复 allow_shell 未声明
+            grep -q "extern bool allow_shell" drivers/kernelsu/policy/allowlist.c 2>/dev/null || \
+              sed -i '1i\extern bool allow_shell;' drivers/kernelsu/policy/allowlist.c
               
             # 修复缺失符号（ksud.c、stat.c、read_write.c、input.c）
             sed -i '1i\#include <linux/jump_label.h>\nDEFINE_STATIC_KEY_FALSE(ksu_init_rc_hook_key_false);\nDEFINE_STATIC_KEY_FALSE(ksu_input_hook_key_false);' drivers/kernelsu/runtime/ksud.c 2>/dev/null || true
