@@ -1081,9 +1081,10 @@ runs:
 
             # 在 drivers/kernelsu/Kbuild 里的 KPM 编译行之前加上 ccflags
             if [ -f drivers/kernelsu/Kbuild ]; then
-              if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
-                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
-              fi
+            if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
+              # 同时加两个 -I：一个让 supercall.h 能找到，一个让 uapi/app_profile.h 能找到
+              sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/$(src)/kpm' drivers/kernelsu/Kbuild
+             fi
             fi
             echo "=== Checking Kbuild after sed ==="
             grep -n "kpm" drivers/kernelsu/Kbuild 2>/dev/null || echo "Kbuild not found"
