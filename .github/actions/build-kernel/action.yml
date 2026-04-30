@@ -1092,7 +1092,6 @@ runs:
                 sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi -I$(srctree)/$(src)' drivers/kernelsu/Kbuild
               fi
             fi
-          fi
 
             echo "=== Checking Kbuild after sed ==="
             grep -n "kpm" drivers/kernelsu/Kbuild 2>/dev/null || echo "Kbuild not found"
