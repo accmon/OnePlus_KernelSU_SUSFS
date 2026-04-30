@@ -1050,17 +1050,19 @@ runs:
             exit 1
             ;;
         esac
+        
         cd "$COMMON_KERNEL_FOLDER"
 
-        # ===== SukiSU Ultra 专用兼容修复 =====
+        # ===== KSUN / SukiSU Ultra 兼容修复 =====
         if [ "${{ inputs.ksu_type }}" = "KSUN" ] || [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
           # 修复 cb_mutex
           sed -i '/DEFINE_MEMBER(netlink_kernel_cfg, cb_mutex)/d' drivers/kernelsu/kpm/super_access.c 2>/dev/null || true
           
-          # 修复 lsm_hook.c
-          if grep -q 'security_add_hooks.*"ksu"' drivers/kernelsu/hook/lsm_hook.c 2>/dev/null; then
+          # 修复 lsm_hook.c（kernelsu 目录下的，不是 KernelSU 目录下的）
+          if [ -f drivers/kernelsu/hook/lsm_hook.c ]; then
             sed -i 's/security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), "ksu");/security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), \&ksu_lsmid);/' drivers/kernelsu/hook/lsm_hook.c
-            sed -i '/void __init ksu_lsm_hook_init/a\    static struct lsm_id ksu_lsmid = { .name = "ksu", .id = LSM_ID_UNDEF };' drivers/kernelsu/hook/lsm_hook.c
+            grep -q "static struct lsm_id ksu_lsmid" drivers/kernelsu/hook/lsm_hook.c || \
+              sed -i '/security_add_hooks.*ksu_lsmid/i\    static struct lsm_id ksu_lsmid = { .name = "ksu", .id = LSM_ID_UNDEF };' drivers/kernelsu/hook/lsm_hook.c
           fi
           
           # 修复 setuid_hook.c
@@ -1068,40 +1070,35 @@ runs:
           sed -i 's/ksu_handle_extra_susfs_work();/\/\/ ksu_handle_extra_susfs_work();/' drivers/kernelsu/hook/setuid_hook.c 2>/dev/null || true
           
           # 修复 init.c 缺少的头文件
-          grep -q "feature/sucompat.h" drivers/kernelsu/core/init.c || \
-            sed -i '/#include "ksu.h"/a #include "feature/sucompat.h"' drivers/kernelsu/core/init.c
-          grep -q "hook/setuid_hook.h" drivers/kernelsu/core/init.c || \
-            sed -i '/#include "ksu.h"/a #include "hook/setuid_hook.h"' drivers/kernelsu/core/init.c
-          # 修复 KPM 头文件路径
+          grep -q "feature/sucompat.h" drivers/kernelsu/core/init.c 2>/dev/null || \
+            sed -i '/#include "ksu.h"/a #include "feature/sucompat.h"' drivers/kernelsu/core/init.c 2>/dev/null || true
+          grep -q "hook/setuid_hook.h" drivers/kernelsu/core/init.c 2>/dev/null || \
+            sed -i '/#include "ksu.h"/a #include "hook/setuid_hook.h"' drivers/kernelsu/core/init.c 2>/dev/null || true
+
+          # SUKISU 专用：KPM 头文件和缺失符号
           if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
-            # 1. 复制 uapi 目录到内核 include 下
-            mkdir -p include/uapi
-            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/"*.h include/uapi/ 2>/dev/null || true
-
-            # 2. 复制 uapi 到 kpm 本地
-            mkdir -p drivers/kernelsu/kpm/uapi
+            # 复制 uapi 头文件
+            mkdir -p drivers/kernelsu/kpm/uapi include/uapi
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/"*.h drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
-
-            # 3. 把 KernelSU/kernel 下的头文件复制到 drivers/kernelsu
+            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/"*.h include/uapi/ 2>/dev/null || true
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/klog.h" drivers/kernelsu/ 2>/dev/null || true
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/include/ksu.h" drivers/kernelsu/ 2>/dev/null || true
 
-            # 4. 在 Kbuild 里加 ccflags（扩展搜索路径）
+            # Kbuild ccflags
             if [ -f drivers/kernelsu/Kbuild ]; then
-              # 先加全局搜索路径（对所有 kernelsu 文件生效）
-              if ! grep -q "srctree)/\$(src)" drivers/kernelsu/Kbuild; then
+              grep -q "srctree)/\$(src)" drivers/kernelsu/Kbuild || \
                 sed -i '1i\ccflags-y += -I$(srctree)/$(src)' drivers/kernelsu/Kbuild
-              fi
-              # 再加 KPM 专用路径
-              if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
-                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
-              fi
+              grep -q "kpm/uapi" drivers/kernelsu/Kbuild || \
+                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi' drivers/kernelsu/Kbuild
             fi
-            
-            echo "=== Checking Kbuild after sed ==="
-            grep -n "kpm" drivers/kernelsu/Kbuild 2>/dev/null || echo "Kbuild not found"
-            echo "=== uapi dir ==="
-            ls -la drivers/kernelsu/kpm/uapi/ 2>/dev/null || echo "uapi dir missing"
+
+            # 修复缺失符号（ksud.c、stat.c、read_write.c、input.c）
+            sed -i '1i\#include <linux/jump_label.h>\nDEFINE_STATIC_KEY_FALSE(ksu_init_rc_hook_key_false);\nDEFINE_STATIC_KEY_FALSE(ksu_input_hook_key_false);' drivers/kernelsu/runtime/ksud.c 2>/dev/null || true
+
+            sed -i 's/extern struct static_key_true ksu_is_init_rc_hook_enabled;/DEFINE_STATIC_KEY_FALSE(ksu_is_init_rc_hook_enabled);/' fs/stat.c 2>/dev/null || true
+            sed -i 's/extern struct static_key_true ksu_is_input_hook_enabled;/DEFINE_STATIC_KEY_FALSE(ksu_is_input_hook_enabled);/' drivers/input/input.c 2>/dev/null || true
+            grep -q "DEFINE_STATIC_KEY_FALSE.*ksu_is_init_rc_hook_enabled" fs/read_write.c || \
+              sed -i 's/DEFINE_STATIC_KEY_FALSE(ksu_is_init_rc_hook_enabled);/extern struct static_key_true ksu_is_init_rc_hook_enabled;/' fs/read_write.c 2>/dev/null || true
           fi
         fi
         # ===== 修复结束 =====
