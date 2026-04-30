@@ -1074,18 +1074,20 @@ runs:
             sed -i '/#include "ksu.h"/a #include "hook/setuid_hook.h"' drivers/kernelsu/core/init.c
           # 修复 KPM 头文件路径
           if [ "${{ inputs.ksu_type }}" = "SUKISU" ]; then
-            # 复制头文件
+          # 1. 把整个 uapi 目录复制到内核源码的 include 下（一劳永逸）
+            mkdir -p include/uapi
+            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/supercall.h" include/uapi/ 2>/dev/null || true
+            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/app_profile.h" include/uapi/ 2>/dev/null || true
+
+            # 2. 也复制到 kpm 本地目录
             mkdir -p drivers/kernelsu/kpm/uapi
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/supercall.h" drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/app_profile.h" drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
 
-            # 直接改 supercall.h 里的 #include，去掉 uapi/ 前缀
-            sed -i 's|#include "uapi/app_profile.h"|#include "app_profile.h"|' drivers/kernelsu/kpm/uapi/supercall.h
-
-            # 在 Kbuild 里加 ccflags（只加 uapi 目录）
+            # 3. 在 Kbuild 里加 ccflags
             if [ -f drivers/kernelsu/Kbuild ]; then
               if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
-                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
+                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi' drivers/kernelsu/Kbuild
               fi
             fi
 
