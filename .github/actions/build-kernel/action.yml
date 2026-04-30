@@ -1106,9 +1106,11 @@ runs:
               done
             fi
             
-            # 修复 ksu_cred 未声明
-            grep -q "extern struct cred \*ksu_cred" drivers/kernelsu/feature/kernel_umount.c 2>/dev/null || \
-              sed -i '1i\extern struct cred *ksu_cred;' drivers/kernelsu/feature/kernel_umount.c
+            # 修复 ksu_cred 未声明（在所有 .c 文件中）
+            KSU_CRED_DEF='extern struct cred \*ksu_cred;'
+            for f in $(grep -rl "ksu_cred" drivers/kernelsu/ --include="*.c" 2>/dev/null); do
+              grep -q "$KSU_CRED_DEF" "$f" || sed -i "1i\\$KSU_CRED_DEF" "$f"
+            done
               
             # 修复缺失符号（ksud.c、stat.c、read_write.c、input.c）
             sed -i '1i\#include <linux/jump_label.h>\nDEFINE_STATIC_KEY_FALSE(ksu_init_rc_hook_key_false);\nDEFINE_STATIC_KEY_FALSE(ksu_input_hook_key_false);' drivers/kernelsu/runtime/ksud.c 2>/dev/null || true
