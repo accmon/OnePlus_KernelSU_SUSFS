@@ -1098,11 +1098,12 @@ runs:
                 sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi' drivers/kernelsu/Kbuild
             fi
             
-            # 复制更多缺失的头文件
-            for hdr in arch.h objsec.h; do
-              HDR_SRC=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "$hdr" -type f 2>/dev/null | head -1)
-              [ -n "$HDR_SRC" ] && cp "$HDR_SRC" drivers/kernelsu/include/ 2>/dev/null || true
-            done
+            # 复制 arch.h 到 feature 目录（同目录引用）
+            ARCH_H=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "arch.h" -type f 2>/dev/null | head -1)
+            if [ -n "$ARCH_H" ]; then
+              cp "$ARCH_H" drivers/kernelsu/feature/
+              cp "$ARCH_H" drivers/kernelsu/hook/ 2>/dev/null || true
+            fi
 
             # 修复 ksu_cred 未声明
             grep -q "extern struct cred \*ksu_cred" drivers/kernelsu/feature/kernel_umount.c 2>/dev/null || \
