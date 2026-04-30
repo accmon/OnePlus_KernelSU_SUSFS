@@ -1097,7 +1097,17 @@ runs:
               grep -q "kpm/uapi" drivers/kernelsu/Kbuild || \
                 sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi' drivers/kernelsu/Kbuild
             fi
+            
+            # 复制更多缺失的头文件
+            for hdr in arch.h objsec.h; do
+              HDR_SRC=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "$hdr" -type f 2>/dev/null | head -1)
+              [ -n "$HDR_SRC" ] && cp "$HDR_SRC" drivers/kernelsu/include/ 2>/dev/null || true
+            done
 
+            # 修复 ksu_cred 未声明
+            grep -q "extern struct cred \*ksu_cred" drivers/kernelsu/feature/kernel_umount.c 2>/dev/null || \
+              sed -i '1i\extern struct cred *ksu_cred;' drivers/kernelsu/feature/kernel_umount.c
+              
             # 修复缺失符号（ksud.c、stat.c、read_write.c、input.c）
             sed -i '1i\#include <linux/jump_label.h>\nDEFINE_STATIC_KEY_FALSE(ksu_init_rc_hook_key_false);\nDEFINE_STATIC_KEY_FALSE(ksu_input_hook_key_false);' drivers/kernelsu/runtime/ksud.c 2>/dev/null || true
 
