@@ -1088,11 +1088,16 @@ runs:
 
             # 4. 在 Kbuild 里加 ccflags（扩展搜索路径）
             if [ -f drivers/kernelsu/Kbuild ]; then
+              # 先加全局搜索路径（对所有 kernelsu 文件生效）
+              if ! grep -q "srctree)/\$(src)" drivers/kernelsu/Kbuild; then
+                sed -i '1i\ccflags-y += -I$(srctree)/$(src)' drivers/kernelsu/Kbuild
+              fi
+              # 再加 KPM 专用路径
               if ! grep -q "kpm/uapi" drivers/kernelsu/Kbuild; then
-                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi -I$(srctree)/include/uapi -I$(srctree)/$(src)' drivers/kernelsu/Kbuild
+                sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
               fi
             fi
-
+            
             echo "=== Checking Kbuild after sed ==="
             grep -n "kpm" drivers/kernelsu/Kbuild 2>/dev/null || echo "Kbuild not found"
             echo "=== uapi dir ==="
