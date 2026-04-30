@@ -1081,8 +1081,14 @@ runs:
             mkdir -p drivers/kernelsu/kpm/uapi include/uapi
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/"*.h drivers/kernelsu/kpm/uapi/ 2>/dev/null || true
             cp "$KERNEL_PLATFORM_FOLDER/KernelSU/uapi/"*.h include/uapi/ 2>/dev/null || true
-            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/klog.h" drivers/kernelsu/ 2>/dev/null || true
-            cp "$KERNEL_PLATFORM_FOLDER/KernelSU/kernel/include/ksu.h" drivers/kernelsu/ 2>/dev/null || true
+            # 复制 klog.h 到所有需要它的目录
+            KLOG_SRC=$(find "$KERNEL_PLATFORM_FOLDER/KernelSU" -name "klog.h" -type f 2>/dev/null | head -1)
+            if [ -n "$KLOG_SRC" ]; then
+              for dest in drivers/kernelsu drivers/kernelsu/core drivers/kernelsu/feature drivers/kernelsu/hook drivers/kernelsu/selinux drivers/kernelsu/sulog; do
+                mkdir -p "$dest"
+                cp "$KLOG_SRC" "$dest/"
+              done
+            fi
 
             # Kbuild ccflags
             if [ -f drivers/kernelsu/Kbuild ]; then
