@@ -1085,6 +1085,10 @@ runs:
                 sed -i '/^obj-\$(CONFIG_KPM) += kpm\/compact.o/i\ccflags-\$(CONFIG_KPM) += -I$(srctree)/$(src)/kpm/uapi' drivers/kernelsu/Kbuild
               fi
             fi
+            echo "=== Checking Kbuild after sed ==="
+            grep -n "kpm" drivers/kernelsu/Kbuild 2>/dev/null || echo "Kbuild not found"
+            echo "=== uapi dir ==="
+            ls -la drivers/kernelsu/kpm/uapi/ 2>/dev/null || echo "uapi dir missing"
           fi
         fi
         # ===== 修复结束 =====
