@@ -1118,6 +1118,10 @@ runs:
                 sed -i '1i\#include <linux/types.h>\nextern bool allow_shell;' drivers/kernelsu/policy/allowlist.c
               fi
             fi
+            
+            # 修复 KERNEL_SU_VERSION 未定义
+            grep -q "KERNEL_SU_VERSION" drivers/kernelsu/supercall/dispatch.c 2>/dev/null && \
+              sed -i '1i\#ifndef KERNEL_SU_VERSION\n#define KERNEL_SU_VERSION 40754\n#endif' drivers/kernelsu/supercall/dispatch.c
               
             # 修复缺失符号（ksud.c、stat.c、read_write.c、input.c）
             sed -i '1i\#include <linux/jump_label.h>\nDEFINE_STATIC_KEY_FALSE(ksu_init_rc_hook_key_false);\nDEFINE_STATIC_KEY_FALSE(ksu_input_hook_key_false);' drivers/kernelsu/runtime/ksud.c 2>/dev/null || true
