@@ -935,6 +935,7 @@ runs:
         echo "SukiSU Ultra Version: $KSU_VERSION"
         cat >> "$COMMON_KERNEL_FOLDER/arch/arm64/configs/gki_defconfig" <<EOF
         CONFIG_KSU=y
+        CONFIG_KSU_KPROBES_HOOK=y
         CONFIG_KPM=y
         EOF
         echo "✅ SukiSU Ultra added"
